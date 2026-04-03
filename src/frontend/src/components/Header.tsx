@@ -1,18 +1,23 @@
 import {
-  Award,
   Bot,
   Briefcase,
+  CreditCard,
   FileImage,
   FileText,
   Mail,
   Menu,
+  Monitor,
+  Moon,
+  Mountain,
   ScrollText,
   ShoppingCart,
+  Sun,
   User,
   X,
 } from "lucide-react";
 import { useState } from "react";
 import type { Page } from "../App";
+import { type ThemePreference, useTheme } from "../hooks/useTheme";
 import { getCustomerSession } from "../types";
 
 interface Props {
@@ -21,9 +26,30 @@ interface Props {
   cartCount: number;
 }
 
+const themeIcons: Record<ThemePreference, React.ReactNode> = {
+  light: <Sun size={18} />,
+  dark: <Moon size={18} />,
+  auto: <Monitor size={18} />,
+};
+
+const themeOrder: ThemePreference[] = ["auto", "light", "dark"];
+
+const themeLabels: Record<ThemePreference, string> = {
+  auto: "Auto (system)",
+  light: "Light mode",
+  dark: "Dark mode",
+};
+
 export function Header({ page, navigate, cartCount }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const customer = getCustomerSession();
+  const { theme, setTheme } = useTheme();
+
+  const cycleTheme = () => {
+    const idx = themeOrder.indexOf(theme);
+    const next = themeOrder[(idx + 1) % themeOrder.length];
+    setTheme(next);
+  };
 
   const navLinks: { label: string; page: Page }[] = [
     { label: "Home", page: "home" },
@@ -32,9 +58,12 @@ export function Header({ page, navigate, cartCount }: Props) {
     { label: "Image Tools", page: "image-tools" },
     { label: "Job Updates", page: "job-updates" },
     { label: "Gov Documents", page: "gov-documents" },
+    { label: "PAN Portal", page: "pan-card" },
     { label: "Contact Us", page: "contact-us" },
     { label: "Manash 2.0", page: "ai-chat" },
-    { label: "Cert & Album", page: "certificate-album" },
+    { label: "\uD83C\uDFAE Entertainment", page: "entertainment" },
+    { label: "\uD83C\uDFD4\uFE0F Assam Tourism", page: "assam-tourism" },
+    { label: "⚙️ Admin Panel", page: "admin" },
   ];
 
   return (
@@ -114,9 +143,10 @@ export function Header({ page, navigate, cartCount }: Props) {
                 {l.page === "image-tools" && <FileImage size={14} />}
                 {l.page === "job-updates" && <Briefcase size={14} />}
                 {l.page === "gov-documents" && <ScrollText size={14} />}
+                {l.page === "pan-card" && <CreditCard size={14} />}
                 {l.page === "contact-us" && <Mail size={14} />}
                 {l.page === "ai-chat" && <Bot size={14} />}
-                {l.page === "certificate-album" && <Award size={14} />}
+                {l.page === "assam-tourism" && <Mountain size={14} />}
                 {l.label}
               </button>
             ))}
@@ -124,6 +154,19 @@ export function Header({ page, navigate, cartCount }: Props) {
 
           {/* Right icons */}
           <div className="flex items-center gap-3">
+            {/* Theme toggle */}
+            <button
+              type="button"
+              onClick={cycleTheme}
+              title={themeLabels[theme]}
+              className="flex items-center transition-colors duration-200 rounded-lg p-1.5 hover:opacity-80"
+              style={{ color: "oklch(0.75 0.04 240)" }}
+              data-ocid="nav.theme.toggle"
+              aria-label={themeLabels[theme]}
+            >
+              {themeIcons[theme]}
+            </button>
+
             <button
               type="button"
               onClick={() => navigate(customer ? "account" : "auth")}
@@ -220,6 +263,36 @@ export function Header({ page, navigate, cartCount }: Props) {
           >
             Admin Panel
           </button>
+          {/* Mobile theme toggle */}
+          <div
+            className="flex items-center gap-3 pt-3 mt-1"
+            style={{ borderTop: "1px solid oklch(0.20 0.04 250)" }}
+          >
+            <span className="text-xs" style={{ color: "oklch(0.5 0.03 240)" }}>
+              Theme:
+            </span>
+            {themeOrder.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTheme(t)}
+                title={themeLabels[t]}
+                className="p-1.5 rounded-lg transition-all duration-200"
+                style={{
+                  color:
+                    theme === t ? "oklch(0.78 0.18 65)" : "oklch(0.5 0.03 240)",
+                  background:
+                    theme === t ? "oklch(0.78 0.18 65 / 0.12)" : "transparent",
+                  border:
+                    theme === t
+                      ? "1px solid oklch(0.78 0.18 65 / 0.4)"
+                      : "1px solid transparent",
+                }}
+              >
+                {themeIcons[t]}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </header>
