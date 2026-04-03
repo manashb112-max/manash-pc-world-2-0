@@ -1476,12 +1476,20 @@ function SongCard({
   idx: number;
 }) {
   const catColor = CATEGORY_COLORS[song.category] ?? "oklch(0.78 0.18 65)";
+  const [playing, setPlaying] = useState(false);
+
+  // Extract YouTube ID from youtubeVideoId or platformLink
+  const ytId =
+    song.youtubeVideoId ??
+    (song.platformLink?.includes("youtube.com/watch?v=")
+      ? song.platformLink.split("v=")[1]?.split("&")[0]
+      : null);
 
   // Cover image: admin URL > YouTube thumbnail > fallback
   const coverImageSrc = song.coverImage
     ? song.coverImage
-    : song.youtubeVideoId
-      ? `https://img.youtube.com/vi/${song.youtubeVideoId}/hqdefault.jpg`
+    : ytId
+      ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
       : null;
 
   const openSongPage = () => {
@@ -1580,20 +1588,69 @@ function SongCard({
           </p>
         )}
 
+        {/* Cover image URL display */}
+        {song.coverImage && (
+          <p
+            className="text-xs truncate mt-0.5"
+            style={{ color: "oklch(0.45 0.04 240)" }}
+          >
+            🖼 {song.coverImage}
+          </p>
+        )}
+
+        {/* Inline player area */}
+        {playing && (
+          <div
+            className="mt-3 rounded-lg overflow-hidden"
+            style={{ background: "oklch(0.10 0.03 250)" }}
+          >
+            {song.audioFileUrl ? (
+              <audio
+                src={song.audioFileUrl}
+                controls
+                autoPlay
+                style={{ width: "100%", height: "40px" }}
+              >
+                <track kind="captions" />
+              </audio>
+            ) : ytId ? (
+              <iframe
+                width="100%"
+                height="200"
+                src={`https://www.youtube.com/embed/${ytId}?autoplay=1`}
+                title={song.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ display: "block" }}
+              />
+            ) : (
+              <p
+                className="text-xs text-center py-4"
+                style={{ color: "oklch(0.55 0.05 240)" }}
+              >
+                No playable source available
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-2 mt-3 flex-wrap">
           <button
             type="button"
-            onClick={openSongPage}
+            onClick={() => setPlaying((p) => !p)}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 active:scale-95"
             style={{
-              background: "oklch(0.78 0.18 65)",
+              background: playing
+                ? "oklch(0.60 0.20 25)"
+                : "oklch(0.78 0.18 65)",
               color: "oklch(0.10 0.03 250)",
               minWidth: "70px",
             }}
             data-ocid="entertainment.music.button"
           >
-            ▶ Play
+            {playing ? "⏹ Stop" : "▶ Play"}
           </button>
           <button
             type="button"
@@ -1616,17 +1673,39 @@ function SongCard({
 }
 
 function MusicLibrary() {
-  const savedData = (() => {
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  useEffect(() => {
+    const onFocus = () => setRefreshTick((t) => t + 1);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "entertainment_admin_data") setRefreshTick((t) => t + 1);
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  const songs: MusicSong[] = (() => {
+    // refreshTick forces re-evaluation when admin saves or window regains focus
+    void refreshTick;
     try {
-      return JSON.parse(
+      const savedData = JSON.parse(
         localStorage.getItem("entertainment_admin_data") || "{}",
       );
+      const adminSongs: MusicSong[] = savedData.musicSongs ?? [];
+      if (adminSongs.length === 0) return DEFAULT_MUSIC_SONGS;
+      const adminIds = new Set(adminSongs.map((s) => s.id));
+      return [
+        ...DEFAULT_MUSIC_SONGS.filter((s) => !adminIds.has(s.id)),
+        ...adminSongs,
+      ];
     } catch {
-      return {};
+      return DEFAULT_MUSIC_SONGS;
     }
   })();
-  const songs: MusicSong[] =
-    (savedData.musicSongs as MusicSong[] | undefined) ?? DEFAULT_MUSIC_SONGS;
 
   const [browseTab, setBrowseTab] = useState<BrowseTab>("category");
   const [search, setSearch] = useState("");
